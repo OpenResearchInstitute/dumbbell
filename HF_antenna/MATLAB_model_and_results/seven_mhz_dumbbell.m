@@ -4,7 +4,7 @@
 
 %% radiation resistance and efficiency model
 
-% from the 1950s Heaviside paper
+% from the 1958 Heaviside paper
 % sin(x) squared graph, over 256 foot aerial
 aerial_length = 256;
 x = 0:pi/18:pi;
@@ -84,6 +84,7 @@ n5ese_length_ft = 11.5+11.5+5+5;
 
 % take the middle one third of the structure for the radiating element
 frequency = 14.2e6  % in Hz
+fut = 23.65e6 % in Hz, fut  is frequency under test, which centers it where it seemed to perform best
 c = 299792458   % speed of light in m/s
 
 wavelength = c/frequency 
@@ -93,6 +94,8 @@ u = symunit;
 radiatorLength_ft = unitConvert(radiatorLength*u.m, u.ft)
 [len units] = separateUnits(radiatorLength_ft);
 len = double(len) % one third of a half wave dipole in feet. 
+
+%% Notch Length set
 
 % if the folded elements are executed with a one inch gap,
 % then set 
@@ -122,6 +125,7 @@ len = double(len) % one third of a half wave dipole in feet.
 
 NotchLength = 0.0254;
 
+%% determine number of humps in folded section
 %radiatorLength = numHumps*(2*NotchWidth + 2*NotchLength)
 
 %NotchRun = numHumps*2*NotchLength
@@ -132,7 +136,7 @@ NotchLength = 0.0254;
 %radiatorLength = numHumps*(2*(numHumps*2*NotchLength) + 2*NotchLength)
 %radiatorLength = numHumps*(4*numHumps*NotchLength + 2*NotchLength)
 %radiatorLength = 4*NotchLength*numHumps^2 + 2*NotchLength*numHumps
-%quadratic equation
+%we can use the quadratic equation
 % 0 = 4*NotchLength*numHumps^2 + 2*NotchLength*numHumps - radiatorLength
 A = 4*NotchLength;
 B = 2*NotchLength;
@@ -144,7 +148,7 @@ numHumps_2= ((-B)-((B^2-4*A*C))^0.5)/(2*A);
 % NotchRun is the horizontal length of the folded element section
 % NotchWidth is the vertical length of the folded element section
 
-
+% in N5ESE's version, we see
 % 12 feet of cable with up 1 foot up 1 foot over 1 foot down 1 foot over as one hump, 
 % so there are 3 humps each 4 feet long 
 
@@ -161,6 +165,9 @@ finalNotchWidth = (radiatorLength - 2*integerNumHumps*NotchLength)/(integerNumHu
 % which is notch length times the integral number of humps. 
 
 NotchRun = integerNumHumps*NotchLength*2
+
+%% determine cowling diameter
+
 cowlingDiameter = NotchRun/pi
 cowlingDiameter_in = unitConvert(cowlingDiameter*u.m, u.in)
 [dia units] = separateUnits(cowlingDiameter_in);
@@ -169,29 +176,42 @@ dia = double(dia) % diameter of the two disks in inches to make the cowling
 % we need to separate the wires by an inch. Install one inch wide square
 % teeth separated by a one inch gap all the way around the cowling disks. 
 
+% in order to draw a diagram, we need some points around a circle.
+% theta runs from -pi to pi and has a point every pi/180 radians, or every
+% 1 degree.
+
 theta = [-pi:pi/36:pi]
-tooth = [0:pi/36:(2*pi/(2*integerNumHumps))]
+
+% 2*integer number of humps is the number of tooth edges around a circle.
+% 2*pi/2*5 humps is how many radians are between tooth edges.
+% tooth defines enough points to draw a gear tooth or gap.
+% tooth is 0 to (2*pi/2*integer number of humps), with values every pi/180
+% (1 degree)
+
+tooth = [pi/180:pi/180:(2*pi/(2*integerNumHumps))]
+
+%draw the cowling
+figure
+hold on
+%draw the outer edges of the gear teeth
+%we draw every other tooth
+inx = [1:2*integerNumHumps] % set up an array with an index for edge tooth edge
+%we're going to draw every other tooth, so collect up the tooth edges that
+%correspond to the places where every other tooth starts. I picked odds.
+inx_odds = inx(1:2:end) 
+
+%draw the outer edge of a tooth then rotate a full tooth then draw another
+%tooth.
+for i = 1:length(inx_odds)
+    plot( ((cowlingDiameter + NotchLength)/2)* cos(tooth+inx_odds(i)*((2*pi)/integerNumHumps)),  ((cowlingDiameter + NotchLength)/2) * sin(tooth+inx_odds(i)*((2*pi)/integerNumHumps)), "LineWidth", 3)
+end
+
+% draw original cowling diameter
+plot(cowlingDiameter/2 * cos(theta), cowlingDiameter/2 * sin(theta), "LineWidth", 3 )
 hold on
 
-%draw every other tooth of the gear
-
-
-%for inx=[1:length(theta)]
-    %if (inx > 1) && (inx < 9)
- 
-% inx = [1:length(theta)]
-% 
-%     if (inx > 1) && (inx < 73)
-% plot( ((cowlingDiameter + NotchLength)/2)* cos(theta(inx)),  ((cowlingDiameter + NotchLength)/2) * sin(theta(inx)), "LineWidth", 3)
-%     end
-
-%end
-
-
-plot(cowlingDiameter/2 * cos(theta), cowlingDiameter/2 * sin(theta), "LineWidth", 3 )
-
+% draw lines indicating where the gear teeth are
 for r=[1:2*integerNumHumps]
-
 line([cowlingDiameter/2*cos(r*2*pi/(2*integerNumHumps)) (cowlingDiameter+NotchLength)/2*cos(r*2*pi/(2*integerNumHumps))], ...
     [cowlingDiameter/2*sin(r*2*pi/(2*integerNumHumps)) (cowlingDiameter+NotchLength)/2*sin(r*2*pi/(2*integerNumHumps))], "LineWidth", 3)
 end
@@ -200,16 +220,18 @@ end
 % calculate arc length, circumference/(2*pi/10) <== use this number to
 % calculate a new radius for the chord length.
 
-arc_length = (cowlingDiameter*pi)*(2*pi/(2*integerNumHumps))/(2*pi)
+arc_length = (cowlingDiameter*pi)*(2*pi/(2*integerNumHumps))/(2*pi);
 
-chord_length = 2*(cowlingDiameter/2)*sin((2*pi/(2*integerNumHumps))/2)
+chord_length = 2*(cowlingDiameter/2)*sin((2*pi/(2*integerNumHumps))/2);
 
-optimized_cowlingDiameter = arc_length/sin((2*pi/(2*integerNumHumps))/2)
+optimized_cowlingDiameter = arc_length/sin((2*pi/(2*integerNumHumps))/2);
 
-outside_diameter = optimized_cowlingDiameter + NotchLength
+outside_diameter = optimized_cowlingDiameter + NotchLength;
 
+%draw the optimized diameter that accounts for the wire going across the
+%chord instead of following the arc of a circular gear lacing system.
 plot( (optimized_cowlingDiameter/2)* cos(theta), (optimized_cowlingDiameter/2) * sin(theta), "LineWidth", 3)
-
+hold off
 
 %% Antenna Properties 
 
@@ -226,12 +248,18 @@ show(antennaObject)
 
 %% Antenna Analysis 
 % Define plot frequency 
-plotFrequency = frequency;
-% Define frequency range 
-freqRange = (0.8*frequency:0.1*frequency:1.2*frequency);
-testFreqRange = (1.6*frequency: 0.01*frequency:2*frequency);
+plotFrequency = fut; %using the frequency where we saw the best SWR?
+% Define frequency range for analysis and visualizations
+% This could be and possibly should be parameterized, but let's model 40m to 10m
+% Here are some other ways of doing it:
+%freqRange = (0.5*plotFrequency:0.1*plotFrequency:1.5*plotFrequency);
+%testFreqRange = (1.6*frequency: 0.01*frequency:2*frequency);
+% here is the fixed range we're using right now:
+freqRange = (7e6:100e3:28e6)
 % Reference Impedance 
 refImpedance = 50;
+
+
 %% calcluations
 
 % impedance
@@ -253,11 +281,11 @@ show(wireAntennaObject)
 
 % impedance of wire antenna
 figure
-impedance(wireAntennaObject, testFreqRange)
+impedance(wireAntennaObject, freqRange)
 
 % produce antenna pattern
 figure
-pattern(wireAntennaObject, frequency)
+pattern(wireAntennaObject, plotFrequency)
 
 % Antenna efficiency of microstrip antenna
 figure
@@ -265,16 +293,17 @@ efficiency(antennaObject, freqRange)
 
 % Charge distribution on antenna
 figure
-charge(wireAntennaObject, frequency)
+charge(wireAntennaObject, plotFrequency)
 
 % Current distribution on antenna
 figure
-current(wireAntennaObject, frequency)
+current(wireAntennaObject, plotFrequency)
 
 %% Attempt Smith chart
 %d = dipole;  % we have a wireAntennaObject 
 %freq = linspace(60e6, 90e6, 200); % we have testFreqRange
-s_50 = sparameters(wireAntennaObject, testFreqRange, 50);
+figure 
+s_50 = sparameters(wireAntennaObject, freqRange, 50);
 hg = smithplot(s_50,[1,1]);
 hg.LegendLabels = {"S11 at 50#ohm"};
 hg.LineWidth = 2;
@@ -301,18 +330,17 @@ coax_cable.LineLength = line_length;
 % and use the antenna's impedance as the load. 
 % Compute the input VSWR for the coaxial cable and dumbbell antenna.
 
-Zantenna =impedance(wireAntennaObject, testFreqRange);
-analyze(coax_cable, testFreqRange, Zantenna);
+Zantenna =impedance(wireAntennaObject, freqRange);
+analyze(coax_cable, freqRange, Zantenna);
 figure
 hline = plot(coax_cable,'VSWRin','None');
 hline.LineWidth = 2;
-
 
 %% Special Operations
 %openExample('antenna/atx_farfield_visualization')
 
 % Define Spatial Plane Extent
-lambda = physconst('lightspeed')/frequency;
+lambda = physconst('lightspeed')/plotFrequency;
 SpatialInfo.XSpan = 0.4*lambda; % was 5*lambda
 SpatialInfo.YSpan = 0.4*lambda;
 SpatialInfo.ZSpan = 0.4*lambda;
@@ -320,7 +348,7 @@ SpatialInfo.NumPointsX = 400;
 SpatialInfo.NumPointsY = 400;
 SpatialInfo.NumPointsZ = 400;
 % Define Time Extent
-Tperiod = 1/frequency;
+Tperiod = 1/plotFrequency;
 T = 2*Tperiod; % was 2
 TimeInfo.TotalTime = T;
 TimeInfo.SamplingTime = [];
@@ -332,5 +360,5 @@ DataInfo.ScaleFactor = 1;
 DataInfo.GifFileName = 'dumbbellEz.gif';
 DataInfo.CloseFigure = true;
 %% Animate
-helperAnimateEHFields(antennaObject,frequency,SpatialInfo, TimeInfo, DataInfo)
-writeAnimation("dumbbellEz.gif") %helper function saves it for us already?
+helperAnimateEHFields(antennaObject,plotFrequency,SpatialInfo, TimeInfo, DataInfo)
+writeaAnimation("dumbbellEz.gif") %helper function saves it for us already, I think. 
